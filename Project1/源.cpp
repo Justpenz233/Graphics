@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 
@@ -12,7 +11,7 @@ using namespace std;
 
 
 #define PATH_SHADER_VERT "VShader.vert"
-#define PATH_SHADER_FRAG
+#define PATH_SHADER_FRAG "Fshader.frag"
 
 GLuint VBO, VAO;
 GLuint VertexShader;
@@ -34,7 +33,10 @@ void Init_VBO(GLfloat *vertices);
 //Create a VBO
 
 bool Init_VertexShader();
-//Create Vertex shader progarm
+//Create and compile Vertex shader progarm
+
+bool Init_FragmentShader();
+//Create and compile Fragment shader
 
 const char *readFileIntoString(string filename);
 // Read a file into string
@@ -77,9 +79,16 @@ int main()
 	//Vertices set
 	Init_VBO(vertices);
 	if (!Init_VertexShader()) {
-		printf("Compile Vertex Shader Failed!\n Program shut down\n");
+		cout << "Compile Vertex Shader Failed!\n Program shut down\n";
+		system("pause");
 		return 0;
 	}
+	if (!Init_FragmentShader()) {
+		cout << "Compile Fragment Shader Failed!\n Program shut down\n";
+		system("pause");
+		return 0;
+	}
+
 	
 	
 
@@ -90,14 +99,8 @@ int main()
 		glfwPollEvents();
 	}//Loop while Not quit
 
-
-
-
-
-
-
 	glfwTerminate();
-	//release memeroy
+	//Release memeroy
 	return 0;
 }
 
@@ -106,7 +109,12 @@ void Work(GLFWwindow *window) {
 	
 }
 
-const char * readFileIntoString(string filename)
+/*
+Read a file into a string
+return const char*
+Used in create shaders
+*/
+const char *readFileIntoString(string filename)
 {
 	string s;
 	ifstream ifile(filename);
@@ -118,7 +126,9 @@ const char * readFileIntoString(string filename)
 	return s.c_str();
 }
 
-
+/*
+Create a buffer && bind to VBO
+*/
 void Init_VBO(GLfloat *vertices) {
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -127,8 +137,11 @@ void Init_VBO(GLfloat *vertices) {
 	//Create a Vertices Buffer and allocate memory
 }
 
+/*
+Create a vertex shader
+Will report info log when Failed
+*/
 bool Init_VertexShader() {
-
 	//Create shader and compile
 	VertexShader = glCreateShader(GL_VERTEX_SHADER);
 	const char *vertexShaderSource = readFileIntoString(PATH_SHADER_VERT);
@@ -145,6 +158,32 @@ bool Init_VertexShader() {
 		std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
 		return 0;
 	}
-	else return 1;
+	else {
+		std::cout << "Compile Vertex shader success\n";
+		return 1;
+	}
+}
+
+bool Init_FragmentShader()
+{
+	GLuint fragmentShader;
+	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	const char* t = readFileIntoString(PATH_SHADER_FRAG);
+	glShaderSource(fragmentShader, 1, &t, NULL);
+	glCompileShader(fragmentShader);
+	//Check if compilation is all right
+	int  success;
+	char infoLog[512];
+	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+	if (!success)
+	{
+		glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+		std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
+		return 0;
+	}
+	else {
+		std::cout << "Compile Fragment shader success\n";
+		return 1;
+	}
 }
 
