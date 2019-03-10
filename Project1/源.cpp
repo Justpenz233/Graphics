@@ -11,11 +11,12 @@ using namespace std;
 
 
 #define PATH_SHADER_VERT "VShader.vert"
-#define PATH_SHADER_FRAG "Fshader.frag"
+#define PATH_SHADER_FRAG "FShader.frag"
 
-GLuint VBO, VAO;
+GLuint VBO, VAO, EBO;
 GLuint VertexShader;
 GLuint FragmentShader;
+GLuint ShaderProgram;
 
 void Work(GLFWwindow *window);
 
@@ -32,11 +33,14 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 void Init_VBO(GLfloat *vertices);
 //Create a VBO
 
-bool Init_VertexShader();
+bool CreateVertexShader();
 //Create and compile Vertex shader progarm
 
-bool Init_FragmentShader();
+bool CreateFragmentShader();
 //Create and compile Fragment shader
+
+bool CreateProgram();
+//Create program and bind shaders
 
 const char *readFileIntoString(string filename);
 // Read a file into string
@@ -64,7 +68,7 @@ int main()
 
 	glViewport(0, 0, 800, 600);
 	//Set viewport size
-	
+
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	//Register a function
@@ -72,29 +76,69 @@ int main()
 
 
 	float vertices[] = {
-	-0.5f, -0.5f, 0.0f,
-	 0.5f, -0.5f, 0.0f,
-	 0.0f,  0.5f, 0.0f
+	 0.5f,  0.5f, 0.0f,  // top right
+	 0.5f, -0.5f, 0.0f,  // bottom right
+	-0.5f, -0.5f, 0.0f,  // bottom left
+	-0.5f,  0.5f, 0.0f   // top left 
+	};
+	unsigned int indices[] = {
+		0, 1, 3,
+		1, 2, 3
 	};
 	//Vertices set
-	Init_VBO(vertices);
-	if (!Init_VertexShader()) {
+	
+
+	if (!CreateVertexShader()) {
 		cout << "Compile Vertex Shader Failed!\n Program shut down\n";
 		system("pause");
 		return 0;
 	}
-	if (!Init_FragmentShader()) {
+
+	if (!CreateFragmentShader()) {
 		cout << "Compile Fragment Shader Failed!\n Program shut down\n";
 		system("pause");
 		return 0;
 	}
 
+	if (!CreateProgram()) {
+		cout << "Compile Shader Program Failed!\n Program shut down\n";
+		system("pause");
+		return 0;
+	}
+
+
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+	glGenBuffers(1, &EBO);
 	
+	glBindVertexArray(VAO);
+
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+
 	
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+
+	glBindVertexArray(0);
+
+
 
 	while (!glfwWindowShouldClose(window))
 	{
+		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glUseProgram(ShaderProgram);
+		glBindVertexArray(VAO);
 		
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}//Loop while Not quit
@@ -102,11 +146,6 @@ int main()
 	glfwTerminate();
 	//Release memeroy
 	return 0;
-}
-
-
-void Work(GLFWwindow *window) {
-	
 }
 
 /*
@@ -126,6 +165,10 @@ const char *readFileIntoString(string filename)
 	return s.c_str();
 }
 
+void Work(GLFWwindow * window)
+{
+}
+
 /*
 Create a buffer && bind to VBO
 */
@@ -141,13 +184,13 @@ void Init_VBO(GLfloat *vertices) {
 Create a vertex shader
 Will report info log when Failed
 */
-bool Init_VertexShader() {
+bool CreateVertexShader() {
 	//Create shader and compile
 	VertexShader = glCreateShader(GL_VERTEX_SHADER);
 	const char *vertexShaderSource = readFileIntoString(PATH_SHADER_VERT);
 	glShaderSource(VertexShader, 1, &vertexShaderSource, NULL);
 	glCompileShader(VertexShader);
-	
+
 	//Check if compilation is all right
 	int  success;
 	char infoLog[512];
@@ -164,25 +207,56 @@ bool Init_VertexShader() {
 	}
 }
 
-bool Init_FragmentShader()
+/*
+Create a vertex shader
+Will report info log when Failed
+*/
+bool CreateFragmentShader()
 {
-	GLuint fragmentShader;
-	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	
+	FragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 	const char* t = readFileIntoString(PATH_SHADER_FRAG);
-	glShaderSource(fragmentShader, 1, &t, NULL);
-	glCompileShader(fragmentShader);
+	glShaderSource(FragmentShader, 1, &t, NULL);
+	glCompileShader(FragmentShader);
 	//Check if compilation is all right
 	int  success;
 	char infoLog[512];
-	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+	glGetShaderiv(FragmentShader, GL_COMPILE_STATUS, &success);
 	if (!success)
 	{
-		glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+		glGetShaderInfoLog(FragmentShader, 512, NULL, infoLog);
 		std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
 		return 0;
 	}
 	else {
 		std::cout << "Compile Fragment shader success\n";
+		return 1;
+	}
+}
+
+/*
+Create a Program bind VertexShader and FragmentShader
+Will report info log when Failed
+*/
+bool CreateProgram()
+{
+	ShaderProgram = glCreateProgram();
+	glAttachShader(ShaderProgram, VertexShader);
+	glAttachShader(ShaderProgram, FragmentShader);
+	glLinkProgram(ShaderProgram);
+	int success;
+	char infoLog[512];
+	glGetShaderiv(ShaderProgram, GL_COMPILE_STATUS, &success);
+	if (!success)
+	{
+		glGetShaderInfoLog(ShaderProgram, 512, NULL, infoLog);
+		std::cout << "ERROR::SHADER::PORGRAM::COMPILATION_FAILED\n" << infoLog << std::endl;
+		return 0;
+	}
+	else {
+
+		std::cout << "Compile Shader program success\n";
+
 		return 1;
 	}
 }
